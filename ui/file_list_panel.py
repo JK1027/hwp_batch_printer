@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QTableWidgetItem, QHeaderView, QPushButton, QLabel
 )
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor, QBrush
 
 from core.app_state import AppState
 from core.models import FileStatus
@@ -22,6 +23,30 @@ STATUS_DISPLAY = {
     FileStatus.SUCCESS: "✅ 성공",
     FileStatus.FAILED: "❌ 실패",
     FileStatus.SKIPPED: "⏭ 건너뜀",
+}
+
+# 상태별 색상 (배경색, 텍스트색)
+STATUS_COLORS = {
+    FileStatus.PENDING: {
+        "bg": "#ffffff",
+        "fg": "#1f2937"
+    },
+    FileStatus.PROCESSING: {
+        "bg": "#eff6ff",  # Light blue (Blue 50)
+        "fg": "#1d4ed8"  # Blue 700
+    },
+    FileStatus.SUCCESS: {
+        "bg": "#ecfdf5",  # Emerald 50
+        "fg": "#047857"  # Emerald 700
+    },
+    FileStatus.FAILED: {
+        "bg": "#fef2f2",  # Red 50
+        "fg": "#b91c1c"  # Red 700
+    },
+    FileStatus.SKIPPED: {
+        "bg": "#f3f4f6",  # Slate 100
+        "fg": "#4b5563"  # Slate 600
+    }
 }
 
 
@@ -85,6 +110,18 @@ class FileListPanel(QWidget):
 
     # ── 테이블 갱신 ──────────────────────────────────────
 
+    def _style_row(self, row: int, status: FileStatus):
+        """행의 모든 셀에 상태에 맞는 스타일 적용"""
+        colors = STATUS_COLORS.get(status, {"bg": "#ffffff", "fg": "#1f2937"})
+        bg_color = QColor(colors["bg"])
+        fg_color = QColor(colors["fg"])
+
+        for col in range(self._table.columnCount()):
+            item = self._table.item(row, col)
+            if item:
+                item.setBackground(QBrush(bg_color))
+                item.setForeground(QBrush(fg_color))
+
     def refresh_table(self):
         """전체 테이블 새로고침"""
         files = self._state.get_files()
@@ -96,6 +133,7 @@ class FileListPanel(QWidget):
             self._table.setItem(
                 row, 2, QTableWidgetItem(STATUS_DISPLAY.get(task.status, ""))
             )
+            self._style_row(row, task.status)
 
         self._file_count_label.setText(f"파일: {len(files)}개")
 
@@ -104,7 +142,15 @@ class FileListPanel(QWidget):
         try:
             status = FileStatus(status_str)
             display = STATUS_DISPLAY.get(status, status_str)
-            self._table.setItem(index, 2, QTableWidgetItem(display))
+            
+            # 셀 항목이 없을 때 예외 방지를 위해 QTableWidgetItem 존재 유무 파악 후 설정
+            item = self._table.item(index, 2)
+            if item:
+                item.setText(display)
+            else:
+                self._table.setItem(index, 2, QTableWidgetItem(display))
+                
+            self._style_row(index, status)
         except (ValueError, IndexError):
             pass
 

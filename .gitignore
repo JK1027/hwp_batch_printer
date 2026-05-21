@@ -1,0 +1,23 @@
+# file: .gitignore
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# PyInstaller build outputs
+build/
+dist/
+*.spec
+
+# Application logs
+logs/
+
+# IDE settings
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
