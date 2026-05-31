@@ -57,15 +57,7 @@ QMainWindow {
     border-bottom: 1px solid #e5e7eb;
 }
 
-#fileTable::item {
-    padding: 6px;
-    border-bottom: 1px solid #f3f4f6;
-}
-
-#fileTable::item:selected {
-    background-color: #e0e7ff; /* Indigo 100 */
-    color: #1f2937;
-}
+/* fileTable::item styling removed to prevent row rendering bugs */
 
 #fileCountLabel {
     font-weight: 600;
