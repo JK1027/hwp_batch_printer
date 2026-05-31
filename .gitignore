@@ -21,3 +21,7 @@ logs/
 *.njsproj
 *.sln
 *.swp
+
+# Virtual environment
+.venv/
+
