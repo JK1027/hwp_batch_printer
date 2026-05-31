@@ -66,6 +66,13 @@ class ControlPanel(QWidget):
         options_layout.addLayout(copies_layout)
         options_layout.addLayout(duplex_layout)
         options_layout.addLayout(nup_layout)
+
+        # 안내 가이드 라벨 추가
+        self._lbl_guide = QLabel("※ 인쇄 옵션은 '일괄 인쇄' 시에만 적용됩니다.")
+        self._lbl_guide.setObjectName("lblOptionGuide")
+        self._lbl_guide.setStyleSheet("color: #ef4444; font-size: 11px; margin-top: 4px;")
+        options_layout.addWidget(self._lbl_guide)
+
         options_group.setLayout(options_layout)
 
         # ── 액션 버튼 그룹 ───────────────────────────────
