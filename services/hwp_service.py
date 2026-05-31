@@ -23,6 +23,7 @@ class HwpService:
 
     def __init__(self, log_service: Optional[LogService] = None):
         self._log = log_service
+        self._spawned_pid: Optional[int] = None
 
     def create_hwp_instance(self) -> object:
         """
@@ -37,6 +38,9 @@ class HwpService:
         """
         try:
             import win32com.client as win32
+            from utils.com_utils import get_hwp_pids
+
+            pids_before = get_hwp_pids()
 
             try:
                 # 1차 시도: EnsureDispatch (사전 빌드된 캐시 사용으로 속도 및 자동 완성 최적화)
@@ -46,6 +50,14 @@ class HwpService:
                     self._log.log_app(f"EnsureDispatch 실패, Dispatch로 재시도: {dispatch_err}", level="WARNING")
                 # 2차 시도: 일반 Dispatch로 폴백
                 hwp = win32.client.Dispatch(HWP_COM_PROG_ID) if hasattr(win32, 'client') else win32.Dispatch(HWP_COM_PROG_ID)
+
+            # 신규 생성된 HWP PID 감지 (Best-effort 방식)
+            pids_after = get_hwp_pids()
+            new_pids = pids_after - pids_before
+            if new_pids:
+                self._spawned_pid = list(new_pids)[0]
+                if self._log:
+                    self._log.log_app(f"스폰된 HWP COM 프로세스 PID 감지: {self._spawned_pid}")
 
             # 보안 모듈 처리 및 창 보이지 않게 설정 (안전성 강화)
             try:
@@ -129,6 +141,12 @@ class HwpService:
             if self._log:
                 self._log.log_error(f"HWP COM 해제 중 오류: {e}", exc=e)
 
-            # 강제 프로세스 종료 시도
-            from utils.com_utils import kill_hwp_processes
-            kill_hwp_processes()
+            # 강제 프로세스 종료 시도 (특정 PID만 타겟)
+            if self._spawned_pid:
+                if self._log:
+                    self._log.log_app(f"HWP COM 프로세스 강제 격리 종료 시도 (PID: {self._spawned_pid})", level="WARNING")
+                from utils.com_utils import kill_process_by_pid
+                kill_process_by_pid(self._spawned_pid)
+            else:
+                if self._log:
+                    self._log.log_app("강제 프로세스 종료 건너뜀 (감지된 PID 없음)", level="WARNING")

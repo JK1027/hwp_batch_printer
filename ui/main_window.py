@@ -210,6 +210,18 @@ class MainWindow(QMainWindow):
         )
 
         self._log.log_app(f"{job_type} 완료: 성공={success}, 실패={failed}")
+
+        # AppState 내부 상태 검증을 위한 구조화된 덤프 출력
+        try:
+            dump_tasks = self._state.get_files()
+            status_summary = {}
+            for t in dump_tasks:
+                status_summary[t.status.name] = status_summary.get(t.status.name, 0) + 1
+            dump_str = ", ".join(f"{k}: {v}" for k, v in status_summary.items())
+            self._log.log_app(f"[AppState SSOT 검증] 전체 파일: {len(dump_tasks)}개 | 상태 집계 -> {dump_str}")
+        except Exception as dump_err:
+            self._log.log_app(f"[AppState SSOT 검증 오류] 상태를 덤프하는 데 실패했습니다: {dump_err}", level="WARNING")
+
         self._current_worker = None
 
         # PDF 변환 완료 후 출력 폴더 열기 제안

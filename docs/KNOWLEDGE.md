@@ -72,3 +72,30 @@ ScriptLock 적용
 # 누적 규칙
 
 새로운 장애 발생 시 반드시 기록한다.
+
+# Hancom Office COM
+
+## EnsureDispatch 실패 시 Dispatch 폴백
+
+문제:
+사용자 PC 환경에 따라 win32com 캐시 오염 등으로 인해 `EnsureDispatch`가 예외를 내며 실행 실패.
+
+해결:
+`EnsureDispatch` 실패 시 예외를 잡아 `win32com.client.Dispatch`로 2차 시도하는 폴백 구조 반영.
+
+## XHwpWindows.Item(0) 초기화 타이밍 문제
+
+문제:
+한글 창 비활성화를 위해 `XHwpWindows.Item(0)`을 호출할 때 윈도우가 미처 초기화되지 않은 상태이면 오류 발생.
+
+해결:
+`try/except` 블록으로 Item(0) 접근 연산을 감싸고, 실패 시 안전하게 건너뛰도록 처리.
+
+## COM 프로세스 PID 추적 및 격리 종료
+
+문제:
+COM 해제 오류 발생 시 `taskkill /im Hwp.exe`로 전체 프로세스를 종료하면 사용자가 작업 중인 문서까지 강제 종료되어 데이터가 유실됨.
+
+해결:
+COM 객체 생성 전/후의 Hwp.exe 프로세스 목록 차집합을 계산해 프로그램이 스폰한 특정 PID를 기록해두고, 자원 해제 실패 시 해당 PID만 `taskkill /f /pid <PID>`로 격리 종료.
+

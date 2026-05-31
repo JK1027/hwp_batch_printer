@@ -19,7 +19,16 @@ from services.log_service import LogService
 
 
 class PrintWorker(QThread):
-    """인쇄 백그라운드 워커"""
+    """
+    인쇄 백그라운드 워커.
+    
+    [스레드 안전성 및 상태 관리 원칙]
+    본 워커는 메인 스레드와 별개인 백그라운드 QThread에서 동작합니다.
+    PySide6/Qt 아키텍처 규칙에 따라 백그라운드 스레드에서 AppState 싱글톤을 직접 수정하거나
+    UI 요소를 직접 제어해서는 안 됩니다 (스레드 충돌 및 GUI 크래시 방지).
+    따라서 워커는 진행 상태와 결과를 전용 Qt Signal로 송신하고, 메인 스레드의 MainWindow가
+    이를 수신하여 AppState를 동기화하고 최종적으로 UI를 안전하게 갱신하도록 설계되었습니다.
+    """
 
     # ── Signals (UI 업데이트용) ───────────────────────────
     progress = Signal(int, int, str)        # (현재, 전체, 파일명)
