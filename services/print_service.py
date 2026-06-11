@@ -48,22 +48,17 @@ class PrintService:
             pset = act.CreateSet()
             act.GetDefault(pset)
 
-            # 매수
-            pset.SetItem("Copies", options.copies)
+            # 매수 (한글 API에서 인쇄 매수 파라미터는 "NumCopy"입니다)
+            pset.SetItem("NumCopy", options.copies)
 
-            # 양면 인쇄
-            if options.duplex == DuplexMode.DUPLEX:
-                pset.SetItem("PrintType", 1)  # 양면
-            else:
-                pset.SetItem("PrintType", 0)  # 단면
-
-            # 모아찍기
+            # 모아찍기 (한글 API에서 모아찍기는 "PrintMethod" 파라미터로 지정합니다)
+            # 0: 기본 인쇄, 4: 2쪽 모아찍기, 6: 4쪽 모아찍기
             if options.nup == NupMode.TWO:
-                pset.SetItem("NumCopy", 2)
+                pset.SetItem("PrintMethod", 4)
             elif options.nup == NupMode.FOUR:
-                pset.SetItem("NumCopy", 4)
+                pset.SetItem("PrintMethod", 6)
             else:
-                pset.SetItem("NumCopy", 1)
+                pset.SetItem("PrintMethod", 0)
 
             # 프린터 지정 (빈 값이면 기본 프린터)
             if options.printer_name:

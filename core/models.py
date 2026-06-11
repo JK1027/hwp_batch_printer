@@ -65,6 +65,21 @@ class PrintOptions:
     nup: NupMode = NupMode.SINGLE                   # 모아찍기
     printer_name: str = ""                           # 프린터 이름 (빈 값 = 기본 프린터)
 
+    def __post_init__(self):
+        # PySide6에서 QComboBox.currentData()가 Enum 클래스가 아닌 기본 자료형(str, int)으로 변환되어 반환될 수 있으므로,
+        # 안전하게 Enum 타입으로 재변환합니다.
+        if isinstance(self.duplex, str) and not isinstance(self.duplex, DuplexMode):
+            try:
+                self.duplex = DuplexMode(self.duplex)
+            except ValueError:
+                self.duplex = DuplexMode.SIMPLEX
+        if isinstance(self.nup, int) and not isinstance(self.nup, NupMode):
+            try:
+                self.nup = NupMode(self.nup)
+            except ValueError:
+                self.nup = NupMode.SINGLE
+
+
 
 @dataclass
 class JobResult:
