@@ -33,6 +33,7 @@ from workers.pdf_worker import PdfWorker
 from workers.print_worker import PrintWorker
 from workers.pdf_gather_worker import PdfGatherWorker
 from services.log_service import LogService
+from services.file_manager import FileManager
 
 
 class MainWindow(QMainWindow):
@@ -42,10 +43,12 @@ class MainWindow(QMainWindow):
         super().__init__()
         self._state = AppState.instance()
         self._log = LogService.instance()
+        self._file_manager = FileManager()
         self._current_worker: Optional[PdfWorker | PrintWorker] = None
         self._setup_window()
         self._setup_ui()
         self._connect_signals()
+        self._update_button_states()
 
     def _setup_window(self):
         """윈도우 기본 설정"""
@@ -84,6 +87,7 @@ class MainWindow(QMainWindow):
         """Signal/Slot 연결"""
         # 드래그앤드롭 → AppState에 파일 추가
         self._drop_zone.files_dropped.connect(self._on_files_dropped)
+        self._state.files_changed.connect(self._update_button_states)
 
         # 컨트롤 패널 버튼
         self._control_panel.convert_pdf_clicked.connect(self._on_convert_pdf)
@@ -96,12 +100,28 @@ class MainWindow(QMainWindow):
     # ── 이벤트 핸들러 ────────────────────────────────────
 
     def _on_files_dropped(self, paths: list):
-        """드롭된 파일 처리"""
-        added = self._state.add_files(paths)
+        """드롭된 파일/폴더 처리"""
+        discovered = self._file_manager.discover_hwp_files(paths)
+        if not discovered:
+            QMessageBox.warning(
+                self,
+                "알림",
+                "선택한 경로에서 HWP/HWPX 한글 문서를 찾지 못했습니다."
+            )
+            self._progress_panel.append_log("⚠️ 추가된 HWP/HWPX 파일이 없습니다.")
+            return
+
+        added = self._state.add_files([str(f) for f in discovered])
         if added > 0:
-            self._progress_panel.append_log(f"📁 {added}개 파일 추가됨")
+            self._progress_panel.append_log(f"📁 {added}개 파일 대기열에 추가됨")
         else:
-            self._progress_panel.append_log("⚠️ 추가할 수 있는 HWP/HWPX 파일이 없습니다")
+            self._progress_panel.append_log("⚠️ 이미 대기열에 등록된 파일들입니다.")
+
+    def _update_button_states(self):
+        """파일 개수와 작업 상태에 의존하여 버튼 활성화/비활성화 상태 동기화"""
+        has_files = self._state.file_count() > 0
+        is_working = self._state.is_working()
+        self._control_panel.sync_button_states(has_files, is_working)
 
     # ── PDF 변환 ─────────────────────────────────────────
 
@@ -118,7 +138,7 @@ class MainWindow(QMainWindow):
         # 상태 초기화 및 UI 전환
         self._state.reset_all_status()
         self._state.set_job_status(JobStatus.CONVERTING)
-        self._control_panel.set_working(True)
+        self._update_button_states()
         self._progress_panel.reset()
         self._progress_panel.set_status("PDF 변환 중...")
 
@@ -205,7 +225,7 @@ class MainWindow(QMainWindow):
         # PDF 변환 자동 실행
         self._state.reset_all_status()
         self._state.set_job_status(JobStatus.CONVERTING)
-        self._control_panel.set_working(True)
+        self._update_button_states()
         self._progress_panel.reset()
         self._progress_panel.set_status("PDF 변환 중...")
 
@@ -267,7 +287,7 @@ class MainWindow(QMainWindow):
 
         # UI 진행 상태 설정
         self._state.set_job_status(JobStatus.CONVERTING)
-        self._control_panel.set_working(True)
+        self._update_button_states()
         self._progress_panel.reset()
         self._progress_panel.set_status(f"PDF 모으기 ({action_kor}) 중...")
 
@@ -309,7 +329,7 @@ class MainWindow(QMainWindow):
         # 상태 초기화 및 UI 전환
         self._state.reset_all_status()
         self._state.set_job_status(JobStatus.PRINTING)
-        self._control_panel.set_working(True)
+        self._update_button_states()
         self._progress_panel.reset()
         self._progress_panel.set_status("인쇄 중...")
 
@@ -376,7 +396,7 @@ class MainWindow(QMainWindow):
     def _on_job_finished(self, job_type: str, success: int, failed: int):
         """작업 완료 처리"""
         self._state.set_job_status(JobStatus.IDLE)
-        self._control_panel.set_working(False)
+        self._update_button_states()
         self._progress_panel.set_status("완료")
         self._progress_panel.append_log(
             f"✅ {job_type} 완료 — 성공: {success}, 실패: {failed}"

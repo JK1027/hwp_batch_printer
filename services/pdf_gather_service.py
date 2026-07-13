@@ -14,7 +14,7 @@ class PdfGatherService:
     """PDF 파일 수집/복사/이동 서비스"""
 
     def gather_pdfs(self, src_dir: Path, dest_dir: Path, action: str,
-                    progress_callback: Callable[[int, int, str], None],
+                    progress_callback: Callable[[int, int, str, str], None],
                     cancel_check: Optional[Callable[[], bool]] = None) -> Tuple[int, int]:
         """
         src_dir 내의 모든 PDF 파일을 수집하여 dest_dir로 복사 또는 이동한다.
@@ -23,7 +23,7 @@ class PdfGatherService:
             src_dir: 원본 검색 디렉토리
             dest_dir: 저장할 대상 디렉토리
             action: "copy" (복사) 또는 "move" (이동)
-            progress_callback: 진척도를 전달할 콜백 함수 (현재, 전체, 파일명)
+            progress_callback: 진척도를 전달할 콜백 함수 (현재, 전체, 원본파일명, 대상파일명)
             cancel_check: 취소 여부를 반환하는 콜백 함수 (선택 사항)
             
         Returns:
@@ -52,7 +52,7 @@ class PdfGatherService:
 
             try:
                 dest_path = self._resolve_dest_path(dest_dir, file_path.name)
-                progress_callback(i + 1, total, file_path.name)
+                progress_callback(i + 1, total, file_path.name, dest_path.name)
 
                 if action == "copy":
                     shutil.copy2(file_path, dest_path)

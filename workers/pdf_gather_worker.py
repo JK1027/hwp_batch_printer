@@ -31,9 +31,12 @@ class PdfGatherWorker(QThread):
         action_kor = "복사" if self._action == "copy" else "이동"
         self.log_message.emit(f"🔄 PDF 모으기 작업 시작 ({action_kor})...")
 
-        def progress_cb(current: int, total: int, filename: str):
+        def progress_cb(current: int, total: int, filename: str, resolved_filename: str):
             self.progress.emit(current, total, filename)
-            self.log_message.emit(f"  📄 [{current}/{total}] {filename} 처리 중...")
+            if filename != resolved_filename:
+                self.log_message.emit(f"  📄 [{current}/{total}] [중복] {filename} ➡️ {resolved_filename}")
+            else:
+                self.log_message.emit(f"  📄 [{current}/{total}] {filename}")
 
         def cancel_check() -> bool:
             if self._cancelled:

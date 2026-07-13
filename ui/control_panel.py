@@ -141,12 +141,12 @@ class ControlPanel(QWidget):
         self._combo_duplex.setCurrentIndex(0)
         self._combo_nup.setCurrentIndex(0)
 
-    def set_working(self, is_working: bool):
-        """작업 중 상태에 따른 UI 토글"""
-        self._btn_convert_pdf.setEnabled(not is_working)
+    def sync_button_states(self, has_files: bool, is_working: bool):
+        """파일 존재 여부 및 작업 진행 상태에 맞춰 버튼들을 동기화"""
+        self._btn_convert_pdf.setEnabled(has_files and not is_working)
         self._btn_convert_folder_pdf.setEnabled(not is_working)
         self._btn_gather_pdf.setEnabled(not is_working)
-        self._btn_print.setEnabled(not is_working)
+        self._btn_print.setEnabled(has_files and not is_working)
         self._btn_reset.setEnabled(not is_working)
         self._btn_cancel.setEnabled(is_working)
         self._spin_copies.setEnabled(not is_working)
