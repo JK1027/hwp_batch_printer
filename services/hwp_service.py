@@ -37,6 +37,10 @@ class HwpService:
             RuntimeError: COM 객체 생성 실패 시
         """
         try:
+            import os
+            import shutil
+            import sys
+            import win32com
             import win32com.client as win32
             from utils.com_utils import get_hwp_pids
 
@@ -47,9 +51,28 @@ class HwpService:
                 hwp = win32.gencache.EnsureDispatch(HWP_COM_PROG_ID)
             except Exception as dispatch_err:
                 if self._log:
-                    self._log.log_app(f"EnsureDispatch 실패, Dispatch로 재시도: {dispatch_err}", level="WARNING")
-                # 2차 시도: 일반 Dispatch로 폴백
-                hwp = win32.client.Dispatch(HWP_COM_PROG_ID) if hasattr(win32, 'client') else win32.Dispatch(HWP_COM_PROG_ID)
+                    self._log.log_app(f"EnsureDispatch 실패 (캐시 오염 감지), 캐시 클리어 후 재시도: {dispatch_err}", level="WARNING")
+                
+                # win32com gen_py 캐시 폴더 삭제 시도 (자가 치유)
+                try:
+                    if hasattr(win32com, "__gen_path__") and win32com.__gen_path__:
+                        gen_py_path = win32com.__gen_path__
+                        if os.path.exists(gen_py_path):
+                            shutil.rmtree(gen_py_path)
+                    
+                    # 메모리에 로드된 gen_py 모듈 캐시 제거
+                    for key in list(sys.modules.keys()):
+                        if key.startswith("win32com.gen_py"):
+                            del sys.modules[key]
+                    
+                    # 2차 시도: EnsureDispatch 재시도
+                    hwp = win32.gencache.EnsureDispatch(HWP_COM_PROG_ID)
+                except Exception as clean_err:
+                    if self._log:
+                        self._log.log_app(f"캐시 삭제 후 EnsureDispatch 실패, dynamic.Dispatch 폴백 시도: {clean_err}", level="WARNING")
+                    # 3차 시도: gen_py 캐시를 완전히 우회하는 dynamic.Dispatch (Late-binding)
+                    import win32com.client.dynamic
+                    hwp = win32com.client.dynamic.Dispatch(HWP_COM_PROG_ID)
 
             # 신규 생성된 HWP PID 감지 (Best-effort 방식)
             pids_after = get_hwp_pids()
@@ -68,7 +91,9 @@ class HwpService:
                     self._log.log_app(f"창 비활성화 설정 건너뜀 (윈도우 초기화 전): {win_err}", level="WARNING")
 
             try:
-                hwp.RegisterModule("FilePathCheckDLL", "FilePathCheckerModule")
+                reg_result = hwp.RegisterModule("FilePathCheckDLL", "FilePathCheckerModule")
+                if not reg_result and self._log:
+                    self._log.log_app("보안 모듈 등록 실패: RegisterModule이 False를 반환했습니다. (보안 팝업이 나타날 수 있음)", level="WARNING")
             except Exception as mod_err:
                 if self._log:
                     self._log.log_app(f"보안 모듈 등록 실패 (이미 등록되었거나 모듈 누락): {mod_err}", level="WARNING")
@@ -99,7 +124,7 @@ class HwpService:
             # 읽기 전용으로 열기
             result = hwp.Open(
                 str(path),
-                "HWP",  # 포맷
+                "",     # 포맷 자동 감지 (HWP/HWPX 확장자 지원 및 경로 특수문자 대응)
                 "forceopen:true"  # 잠긴 파일도 열기
             )
 
