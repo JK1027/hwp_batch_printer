@@ -159,28 +159,15 @@ class MainWindow(QMainWindow):
         if not input_dir:
             return
 
-        # 2. 출력 폴더 선택
-        output_dir = QFileDialog.getExistingDirectory(self, "변환된 PDF를 저장할 출력 폴더 선택")
-        if not output_dir:
-            return
-
         input_path = Path(input_dir)
-        output_path = Path(output_dir)
 
-        # 3. 폴더 탐색 (재귀적 탐색)
+        # 2. 폴더 탐색 (재귀적 탐색)
         hwp_files = []
         for ext in ["*.hwp", "*.hwpx"]:
             for f in input_path.rglob(ext):
                 # 심볼릭 링크 및 Junction 무시
                 if f.is_symlink():
                     continue
-                # 출력 폴더 내부나 하위 경로인 파일 제외
-                try:
-                    if f.is_relative_to(output_path):
-                        continue
-                except ValueError:
-                    # 서로 다른 드라이브 등인 경우 is_relative_to가 ValueError를 던질 수 있음
-                    pass
                 hwp_files.append(f)
 
         # 대소문자 구분 및 중복 방지 정렬
@@ -190,7 +177,7 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "알림", "선택한 폴더 내에 한글(HWP/HWPX) 파일이 존재하지 않습니다.")
             return
 
-        # 4. 사전 확인 단계 (UX 개선)
+        # 3. 사전 확인 단계 (UX 개선)
         confirm_reply = QMessageBox.question(
             self,
             "확인",
@@ -204,11 +191,10 @@ class MainWindow(QMainWindow):
         # 기존 목록 비우고 새로운 파일 목록 추가
         self._state.clear_files()
         
-        # 파일 추가 (출력 디렉토리와 루트 입력 디렉토리 전달)
+        # 파일 추가 (원본 폴더 자동 저장 옵션 전달)
         added = self._state.add_files(
             [str(f) for f in hwp_files], 
-            output_dir=output_path, 
-            root_input_dir=input_path
+            use_source_dir_as_output=True
         )
         
         self._progress_panel.append_log(f"📁 폴더 검색 완료: {added}개 파일 추가됨")

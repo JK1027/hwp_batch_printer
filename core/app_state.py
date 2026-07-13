@@ -48,7 +48,8 @@ class AppState(QObject):
     # ── 파일 관리 ────────────────────────────────────────
 
     def add_files(self, paths: List[str], output_dir: Optional[Path] = None,
-                  root_input_dir: Optional[Path] = None) -> int:
+                  root_input_dir: Optional[Path] = None,
+                  use_source_dir_as_output: bool = False) -> int:
         """
         파일 경로 목록을 추가한다.
         중복/미지원 확장자는 필터링한다.
@@ -74,8 +75,11 @@ class AppState(QObject):
                 except ValueError:
                     pass
 
+            # use_source_dir_as_output 플래그에 따라 출력 경로를 개별 파일의 원본 폴더로 바인딩
+            target_output_dir = path.parent if use_source_dir_as_output else output_dir
+
             self._file_tasks.append(
-                FileTask(path=path, output_dir=output_dir, relative_dir=relative_dir)
+                FileTask(path=path, output_dir=target_output_dir, relative_dir=relative_dir)
             )
             existing_paths.add(path)
             added += 1
