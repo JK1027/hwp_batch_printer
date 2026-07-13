@@ -20,6 +20,7 @@ class ControlPanel(QWidget):
     # ── Signals ──────────────────────────────────────────
     convert_pdf_clicked = Signal()    # PDF 변환 버튼 클릭
     convert_folder_pdf_clicked = Signal()  # 폴더 전체 PDF 변환 버튼 클릭
+    gather_pdf_clicked = Signal()     # PDF 모으기 버튼 클릭
     print_clicked = Signal()         # 인쇄 버튼 클릭
     cancel_clicked = Signal()        # 취소 버튼 클릭
     reset_clicked = Signal()         # 초기화 버튼 클릭
@@ -90,6 +91,10 @@ class ControlPanel(QWidget):
         self._btn_convert_folder_pdf.setObjectName("btnConvertFolderPdf")
         self._btn_convert_folder_pdf.clicked.connect(self.convert_folder_pdf_clicked.emit)
 
+        self._btn_gather_pdf = QPushButton("📂 PDF 모으기")
+        self._btn_gather_pdf.setObjectName("btnGatherPdf")
+        self._btn_gather_pdf.clicked.connect(self.gather_pdf_clicked.emit)
+
         self._btn_print = QPushButton("🖨 일괄 인쇄")
         self._btn_print.setObjectName("btnPrint")
         self._btn_print.clicked.connect(self.print_clicked.emit)
@@ -105,6 +110,7 @@ class ControlPanel(QWidget):
 
         buttons_layout.addWidget(self._btn_convert_pdf)
         buttons_layout.addWidget(self._btn_convert_folder_pdf)
+        buttons_layout.addWidget(self._btn_gather_pdf)
         buttons_layout.addWidget(self._btn_print)
         buttons_layout.addWidget(self._btn_reset)
         buttons_layout.addWidget(self._btn_cancel)
@@ -137,6 +143,7 @@ class ControlPanel(QWidget):
         """작업 중 상태에 따른 UI 토글"""
         self._btn_convert_pdf.setEnabled(not is_working)
         self._btn_convert_folder_pdf.setEnabled(not is_working)
+        self._btn_gather_pdf.setEnabled(not is_working)
         self._btn_print.setEnabled(not is_working)
         self._btn_reset.setEnabled(not is_working)
         self._btn_cancel.setEnabled(is_working)

@@ -258,6 +258,26 @@ QPushButton:disabled {
     color: #ffffff;
 }
 
+/* PDF 모으기 (Warning/Highlight - Amber) */
+#btnGatherPdf {
+    background-color: #f59e0b;
+    color: #ffffff;
+    border: none;
+}
+
+#btnGatherPdf:hover {
+    background-color: #d97706;
+}
+
+#btnGatherPdf:pressed {
+    background-color: #b45309;
+}
+
+#btnGatherPdf:disabled {
+    background-color: #fde68a;
+    color: #ffffff;
+}
+
 /* 일괄 인쇄 (Success - Emerald) */
 #btnPrint {
     background-color: #10b981;

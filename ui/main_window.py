@@ -31,6 +31,7 @@ from ui.progress_panel import ProgressPanel
 
 from workers.pdf_worker import PdfWorker
 from workers.print_worker import PrintWorker
+from workers.pdf_gather_worker import PdfGatherWorker
 from services.log_service import LogService
 
 
@@ -87,6 +88,7 @@ class MainWindow(QMainWindow):
         # 컨트롤 패널 버튼
         self._control_panel.convert_pdf_clicked.connect(self._on_convert_pdf)
         self._control_panel.convert_folder_pdf_clicked.connect(self._on_convert_folder_pdf)
+        self._control_panel.gather_pdf_clicked.connect(self._on_gather_pdf)
         self._control_panel.print_clicked.connect(self._on_print)
         self._control_panel.reset_clicked.connect(self._on_reset)
         self._control_panel.cancel_clicked.connect(self._on_cancel)
@@ -220,6 +222,74 @@ class MainWindow(QMainWindow):
         self._current_worker.file_done.connect(self._on_worker_file_done)
         self._current_worker.finished_all.connect(
             lambda s, f: self._on_job_finished("폴더 전체 PDF 변환", s, f)
+        )
+        self._current_worker.log_message.connect(self._progress_panel.append_log)
+        self._current_worker.start()
+
+    def _on_gather_pdf(self):
+        """PDF 모으기 시작"""
+        if self._state.is_working():
+            QMessageBox.warning(self, "알림", "이미 작업이 진행 중입니다.")
+            return
+
+        # 1. 원본 폴더 선택
+        src_dir = QFileDialog.getExistingDirectory(self, "PDF 파일이 있는 원본 폴더 선택")
+        if not src_dir:
+            return
+
+        # 2. 대상 저장 폴더 선택
+        dest_dir = QFileDialog.getExistingDirectory(self, "PDF 파일을 복사/이동할 대상 저장 폴더 선택")
+        if not dest_dir:
+            return
+
+        # 자기 자신 폴더로 수집하는 등의 비정상 동작 차단
+        src_path = Path(src_dir)
+        dest_path = Path(dest_dir)
+        if src_path == dest_path:
+            QMessageBox.warning(self, "오류", "원본 폴더와 대상 폴더는 같을 수 없습니다.")
+            return
+
+        # 3. 작업 옵션 선택 (복사 / 이동)
+        msg_box = QMessageBox(self)
+        msg_box.setWindowTitle("PDF 모으기 옵션 선택")
+        msg_box.setText("PDF 파일을 대상 폴더로 복사하시겠습니까, 아니면 이동하시겠습니까?")
+        
+        btn_copy = msg_box.addButton("복사", QMessageBox.ButtonRole.AcceptRole)
+        btn_move = msg_box.addButton("이동", QMessageBox.ButtonRole.AcceptRole)
+        btn_cancel = msg_box.addButton("취소", QMessageBox.ButtonRole.RejectRole)
+        
+        msg_box.setDefaultButton(btn_copy)
+        msg_box.exec()
+
+        clicked_button = msg_box.clickedButton()
+        if clicked_button == btn_cancel:
+            return
+        elif clicked_button == btn_copy:
+            action = "copy"
+            action_kor = "복사"
+        elif clicked_button == btn_move:
+            action = "move"
+            action_kor = "이동"
+        else:
+            return
+
+        # UI 진행 상태 설정
+        self._state.set_job_status(JobStatus.CONVERTING)
+        self._control_panel.set_working(True)
+        self._progress_panel.reset()
+        self._progress_panel.set_status(f"PDF 모으기 ({action_kor}) 중...")
+
+        # Worker 시작
+        self._current_worker = PdfGatherWorker(
+            src_dir=src_path,
+            dest_dir=dest_path,
+            action=action,
+            log_service=self._log,
+            parent=self,
+        )
+        self._current_worker.progress.connect(self._progress_panel.set_progress)
+        self._current_worker.finished_all.connect(
+            lambda s, f: self._on_job_finished(f"PDF 모으기 ({action_kor})", s, f)
         )
         self._current_worker.log_message.connect(self._progress_panel.append_log)
         self._current_worker.start()
