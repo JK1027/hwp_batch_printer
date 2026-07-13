@@ -88,6 +88,7 @@ class MainWindow(QMainWindow):
         self._control_panel.convert_pdf_clicked.connect(self._on_convert_pdf)
         self._control_panel.convert_folder_pdf_clicked.connect(self._on_convert_folder_pdf)
         self._control_panel.print_clicked.connect(self._on_print)
+        self._control_panel.reset_clicked.connect(self._on_reset)
         self._control_panel.cancel_clicked.connect(self._on_cancel)
 
     # ── 이벤트 핸들러 ────────────────────────────────────
@@ -277,6 +278,28 @@ class MainWindow(QMainWindow):
             self._current_worker.cancel()
             self._progress_panel.set_status("취소 중...")
             self._progress_panel.append_log("⛔ 취소 요청됨...")
+
+    # ── 초기화 ─────────────────────────────────────────────
+
+    def _on_reset(self):
+        """전체 초기화"""
+        if self._state.is_working():
+            QMessageBox.warning(self, "알림", "작업 진행 중에는 초기화할 수 없습니다.")
+            return
+
+        reply = QMessageBox.question(
+            self,
+            "초기화",
+            "등록된 파일 목록과 모든 설정을 초기화하시겠습니까?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            self._state.reset()
+            self._control_panel.reset_settings()
+            self._progress_panel.reset()
+            self._progress_panel.set_status("대기 중")
+            self._progress_panel.append_log("🧹 파일 목록과 설정을 초기화했습니다.")
 
     # ── Worker 콜백 ──────────────────────────────────────
 

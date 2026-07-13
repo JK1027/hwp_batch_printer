@@ -22,6 +22,7 @@ class ControlPanel(QWidget):
     convert_folder_pdf_clicked = Signal()  # 폴더 전체 PDF 변환 버튼 클릭
     print_clicked = Signal()         # 인쇄 버튼 클릭
     cancel_clicked = Signal()        # 취소 버튼 클릭
+    reset_clicked = Signal()         # 초기화 버튼 클릭
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -93,6 +94,10 @@ class ControlPanel(QWidget):
         self._btn_print.setObjectName("btnPrint")
         self._btn_print.clicked.connect(self.print_clicked.emit)
 
+        self._btn_reset = QPushButton("🧹 초기화")
+        self._btn_reset.setObjectName("btnReset")
+        self._btn_reset.clicked.connect(self.reset_clicked.emit)
+
         self._btn_cancel = QPushButton("⛔ 취소")
         self._btn_cancel.setObjectName("btnCancel")
         self._btn_cancel.setEnabled(False)
@@ -101,6 +106,7 @@ class ControlPanel(QWidget):
         buttons_layout.addWidget(self._btn_convert_pdf)
         buttons_layout.addWidget(self._btn_convert_folder_pdf)
         buttons_layout.addWidget(self._btn_print)
+        buttons_layout.addWidget(self._btn_reset)
         buttons_layout.addWidget(self._btn_cancel)
         buttons_group.setLayout(buttons_layout)
 
@@ -121,11 +127,18 @@ class ControlPanel(QWidget):
         """설정된 모아찍기 모드 반환"""
         return self._combo_nup.currentData()
 
+    def reset_settings(self):
+        """인쇄 설정 값을 기본값으로 리셋"""
+        self._spin_copies.setValue(DEFAULT_COPIES)
+        self._combo_duplex.setCurrentIndex(0)
+        self._combo_nup.setCurrentIndex(0)
+
     def set_working(self, is_working: bool):
         """작업 중 상태에 따른 UI 토글"""
         self._btn_convert_pdf.setEnabled(not is_working)
         self._btn_convert_folder_pdf.setEnabled(not is_working)
         self._btn_print.setEnabled(not is_working)
+        self._btn_reset.setEnabled(not is_working)
         self._btn_cancel.setEnabled(is_working)
         self._spin_copies.setEnabled(not is_working)
         self._combo_duplex.setEnabled(not is_working)
