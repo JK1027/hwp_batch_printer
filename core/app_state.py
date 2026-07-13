@@ -47,7 +47,8 @@ class AppState(QObject):
 
     # ── 파일 관리 ────────────────────────────────────────
 
-    def add_files(self, paths: List[str]) -> int:
+    def add_files(self, paths: List[str], output_dir: Optional[Path] = None,
+                  root_input_dir: Optional[Path] = None) -> int:
         """
         파일 경로 목록을 추가한다.
         중복/미지원 확장자는 필터링한다.
@@ -65,7 +66,17 @@ class AppState(QObject):
             if not path.exists():
                 continue
 
-            self._file_tasks.append(FileTask(path=path))
+            # root_input_dir이 있으면 상대 경로 디렉토리 계산
+            relative_dir = None
+            if root_input_dir:
+                try:
+                    relative_dir = path.parent.relative_to(root_input_dir)
+                except ValueError:
+                    pass
+
+            self._file_tasks.append(
+                FileTask(path=path, output_dir=output_dir, relative_dir=relative_dir)
+            )
             existing_paths.add(path)
             added += 1
 

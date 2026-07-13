@@ -7,7 +7,7 @@ Pydantic 사용 금지 — dataclass 우선 사용 원칙.
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 
 # ── 상태 열거형 ─────────────────────────────────────────
@@ -51,6 +51,8 @@ class FileTask:
     filename: str = ""                        # 표시용 파일명
     status: FileStatus = FileStatus.PENDING   # 처리 상태
     error_message: str = ""                   # 실패 시 에러 메시지
+    output_dir: Optional[Path] = None         # PDF/인쇄 출력 저장 경로 (있을 경우 사용)
+    relative_dir: Optional[Path] = None        # 입력 폴더 대비 상대 폴더 경로
 
     def __post_init__(self):
         if not self.filename:

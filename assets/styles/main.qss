@@ -238,6 +238,26 @@ QPushButton:disabled {
     color: #ffffff;
 }
 
+/* 폴더 전체 PDF 변환 (Primary Light - Violet/Purple) */
+#btnConvertFolderPdf {
+    background-color: #7c3aed; /* Violet 600 */
+    color: #ffffff;
+    border: none;
+}
+
+#btnConvertFolderPdf:hover {
+    background-color: #6d28d9; /* Violet 700 */
+}
+
+#btnConvertFolderPdf:pressed {
+    background-color: #5b21b6; /* Violet 800 */
+}
+
+#btnConvertFolderPdf:disabled {
+    background-color: #ddd6fe; /* Violet 200 */
+    color: #ffffff;
+}
+
 /* 일괄 인쇄 (Success - Emerald) */
 #btnPrint {
     background-color: #10b981;

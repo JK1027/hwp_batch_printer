@@ -43,12 +43,19 @@ class PdfService:
         """
         start_time = time.time()
         source_path = file_task.path
-        output_path = self.get_output_path(source_path)
+        
+        # 출력 디렉토리 결정 (relative_dir 반영)
+        if file_task.output_dir:
+            output_dir = file_task.output_dir
+            if file_task.relative_dir:
+                output_dir = output_dir / file_task.relative_dir
+            output_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            output_dir = self.ensure_output_dir(source_path)
+            
+        output_path = output_dir / source_path.with_suffix(".pdf").name
 
         try:
-            # 1. 출력 디렉토리 확보
-            self.ensure_output_dir(source_path)
-
             # 2. 문서 열기
             if not self._hwp.open_document(hwp_instance, source_path):
                 raise RuntimeError(f"문서 열기 실패: {source_path.name}")

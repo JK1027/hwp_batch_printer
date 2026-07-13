@@ -10,7 +10,7 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
-from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QMessageBox
+from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QMessageBox, QFileDialog
 from PySide6.QtCore import Qt
 
 from core.constants import (
@@ -86,6 +86,7 @@ class MainWindow(QMainWindow):
 
         # 컨트롤 패널 버튼
         self._control_panel.convert_pdf_clicked.connect(self._on_convert_pdf)
+        self._control_panel.convert_folder_pdf_clicked.connect(self._on_convert_folder_pdf)
         self._control_panel.print_clicked.connect(self._on_print)
         self._control_panel.cancel_clicked.connect(self._on_cancel)
 
@@ -131,6 +132,107 @@ class MainWindow(QMainWindow):
         self._current_worker.file_done.connect(self._on_worker_file_done)
         self._current_worker.finished_all.connect(
             lambda s, f: self._on_job_finished("PDF 변환", s, f)
+        )
+        self._current_worker.log_message.connect(self._progress_panel.append_log)
+        self._current_worker.start()
+
+    def _on_convert_folder_pdf(self):
+        """폴더 전체 PDF 변환 시작"""
+        if self._state.is_working():
+            QMessageBox.warning(self, "알림", "이미 작업이 진행 중입니다.")
+            return
+
+        # 기존 대기 파일이 있을 때 경고창 띄우기
+        if self._state.file_count() > 0:
+            reply = QMessageBox.question(
+                self,
+                "확인",
+                "현재 등록된 파일 목록을 모두 비우고 폴더 변환을 진행하시겠습니까?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No
+            )
+            if reply == QMessageBox.StandardButton.No:
+                return
+
+        # 1. 입력 폴더 선택
+        input_dir = QFileDialog.getExistingDirectory(self, "한글(HWP/HWPX) 파일이 있는 입력 폴더 선택")
+        if not input_dir:
+            return
+
+        # 2. 출력 폴더 선택
+        output_dir = QFileDialog.getExistingDirectory(self, "변환된 PDF를 저장할 출력 폴더 선택")
+        if not output_dir:
+            return
+
+        input_path = Path(input_dir)
+        output_path = Path(output_dir)
+
+        # 3. 폴더 탐색 (재귀적 탐색)
+        hwp_files = []
+        for ext in ["*.hwp", "*.hwpx"]:
+            for f in input_path.rglob(ext):
+                # 심볼릭 링크 및 Junction 무시
+                if f.is_symlink():
+                    continue
+                # 출력 폴더 내부나 하위 경로인 파일 제외
+                try:
+                    if f.is_relative_to(output_path):
+                        continue
+                except ValueError:
+                    # 서로 다른 드라이브 등인 경우 is_relative_to가 ValueError를 던질 수 있음
+                    pass
+                hwp_files.append(f)
+
+        # 대소문자 구분 및 중복 방지 정렬
+        hwp_files = sorted(list(set(hwp_files)), key=lambda p: str(p).lower())
+
+        if not hwp_files:
+            QMessageBox.warning(self, "알림", "선택한 폴더 내에 한글(HWP/HWPX) 파일이 존재하지 않습니다.")
+            return
+
+        # 4. 사전 확인 단계 (UX 개선)
+        confirm_reply = QMessageBox.question(
+            self,
+            "확인",
+            f"총 {len(hwp_files)}개의 한글 파일을 찾았습니다.\n변환을 시작하시겠습니까?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes
+        )
+        if confirm_reply == QMessageBox.StandardButton.No:
+            return
+
+        # 기존 목록 비우고 새로운 파일 목록 추가
+        self._state.clear_files()
+        
+        # 파일 추가 (출력 디렉토리와 루트 입력 디렉토리 전달)
+        added = self._state.add_files(
+            [str(f) for f in hwp_files], 
+            output_dir=output_path, 
+            root_input_dir=input_path
+        )
+        
+        self._progress_panel.append_log(f"📁 폴더 검색 완료: {added}개 파일 추가됨")
+
+        # PDF 변환 자동 실행
+        self._state.reset_all_status()
+        self._state.set_job_status(JobStatus.CONVERTING)
+        self._control_panel.set_working(True)
+        self._progress_panel.reset()
+        self._progress_panel.set_status("PDF 변환 중...")
+
+        tasks = self._state.get_files()
+        self._log.log_app(f"폴더 전체 PDF 변환 시작: {len(tasks)}개 파일")
+
+        # Worker 생성 및 Signal 연결
+        self._current_worker = PdfWorker(
+            tasks=tasks,
+            log_service=self._log,
+            parent=self,
+        )
+        self._current_worker.progress.connect(self._progress_panel.set_progress)
+        self._current_worker.file_done.connect(self._on_worker_file_done)
+        self._current_worker.finished_all.connect(
+            lambda s, f: self._on_job_finished("폴더 전체 PDF 변환", s, f)
         )
         self._current_worker.log_message.connect(self._progress_panel.append_log)
         self._current_worker.start()
@@ -228,7 +330,11 @@ class MainWindow(QMainWindow):
         if "PDF" in job_type and success > 0:
             files = self._state.get_files()
             if files:
-                output_dir = files[0].path.parent / PDF_OUTPUT_DIR_NAME
+                if files[0].output_dir:
+                    output_dir = files[0].output_dir
+                else:
+                    output_dir = files[0].path.parent / PDF_OUTPUT_DIR_NAME
+                
                 if output_dir.exists():
                     reply = QMessageBox.question(
                         self,
