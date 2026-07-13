@@ -232,27 +232,19 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "알림", "이미 작업이 진행 중입니다.")
             return
 
-        # 1. 원본 폴더 선택
-        src_dir = QFileDialog.getExistingDirectory(self, "PDF 파일이 있는 원본 폴더 선택")
+        # 1. 수집 대상 폴더 선택 (이 폴더 내의 모든 PDF를 찾아서 내부의 'PDF_모음' 폴더로 모음)
+        src_dir = QFileDialog.getExistingDirectory(self, "PDF 파일을 모을 폴더 선택")
         if not src_dir:
             return
 
-        # 2. 대상 저장 폴더 선택
-        dest_dir = QFileDialog.getExistingDirectory(self, "PDF 파일을 복사/이동할 대상 저장 폴더 선택")
-        if not dest_dir:
-            return
-
-        # 자기 자신 폴더로 수집하는 등의 비정상 동작 차단
         src_path = Path(src_dir)
-        dest_path = Path(dest_dir)
-        if src_path == dest_path:
-            QMessageBox.warning(self, "오류", "원본 폴더와 대상 폴더는 같을 수 없습니다.")
-            return
+        dest_path = src_path / "PDF_모음"
 
-        # 3. 작업 옵션 선택 (복사 / 이동)
+        # 2. 작업 옵션 선택 (복사 / 이동)
         msg_box = QMessageBox(self)
         msg_box.setWindowTitle("PDF 모으기 옵션 선택")
-        msg_box.setText("PDF 파일을 대상 폴더로 복사하시겠습니까, 아니면 이동하시겠습니까?")
+        msg_box.setText(f"선택한 폴더 내부의 모든 PDF 파일을 '{dest_path.name}' 폴더로 모으시겠습니까?\n\n"
+                        f"대상 폴더: {dest_path}")
         
         btn_copy = msg_box.addButton("복사", QMessageBox.ButtonRole.AcceptRole)
         btn_move = msg_box.addButton("이동", QMessageBox.ButtonRole.AcceptRole)

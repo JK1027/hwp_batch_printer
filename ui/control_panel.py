@@ -82,6 +82,8 @@ class ControlPanel(QWidget):
         buttons_group = QGroupBox("작업")
         buttons_group.setObjectName("buttonsGroup")
         buttons_layout = QVBoxLayout()
+        buttons_layout.setSpacing(4)
+        buttons_layout.setContentsMargins(6, 12, 6, 6)
 
         self._btn_convert_pdf = QPushButton("📄 PDF 변환")
         self._btn_convert_pdf.setObjectName("btnConvertPdf")
