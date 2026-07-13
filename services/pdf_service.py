@@ -64,12 +64,32 @@ class PdfService:
             temp_path = output_path.with_suffix(".tmp.pdf")
 
             try:
-                hwp_instance.SaveAs(
-                    str(temp_path),
-                    self.HWP_SAVE_FORMAT_PDF,
-                )
+                try:
+                    # 1차 시도: 3개 인자 전달 (Format, Arg 포함) - Early-Binding 및 최신 한글 대응
+                    hwp_instance.SaveAs(
+                        str(temp_path),
+                        self.HWP_SAVE_FORMAT_PDF,
+                        ""
+                    )
+                except (TypeError, Exception) as inner_err:
+                    # 매개변수 개수 부족 또는 COM 오류(-2147352562)인 경우 2개 인자로 폴백 시도
+                    is_param_err = False
+                    if isinstance(inner_err, TypeError):
+                        is_param_err = True
+                    else:
+                        hresult = getattr(inner_err, "hresult", None)
+                        if hresult == -2147352562 or "2147352562" in str(inner_err):
+                            is_param_err = True
+                    
+                    if is_param_err:
+                        hwp_instance.SaveAs(
+                            str(temp_path),
+                            self.HWP_SAVE_FORMAT_PDF
+                        )
+                    else:
+                        raise
             except Exception as e:
-                raise RuntimeError(f"PDF 저장 실패: {e}") from e
+                raise RuntimeError(f"PDF 저장 실패 (경로: {source_path}): {e}") from e
 
             # 4. temp 파일 검증
             if not temp_path.exists() or temp_path.stat().st_size == 0:
@@ -88,7 +108,7 @@ class PdfService:
             elapsed = time.time() - start_time
             if self._log:
                 self._log.log_convert(
-                    source_path.name, "SUCCESS", elapsed=elapsed
+                    str(source_path), "SUCCESS", elapsed=elapsed
                 )
             return True
 
@@ -111,11 +131,11 @@ class PdfService:
 
             if self._log:
                 self._log.log_convert(
-                    source_path.name, "FAILED",
+                    str(source_path), "FAILED",
                     error=str(e), elapsed=elapsed
                 )
                 self._log.log_error(
-                    f"PDF 변환 실패: {source_path.name}", exc=e
+                    f"PDF 변환 실패 (경로: {source_path})", exc=e
                 )
             return False
 
