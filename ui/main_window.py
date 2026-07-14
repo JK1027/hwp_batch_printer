@@ -10,7 +10,7 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
-from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QMessageBox, QFileDialog
+from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QMessageBox, QFileDialog, QTabWidget, QGroupBox, QPushButton
 from PySide6.QtCore import Qt
 
 from core.constants import (
@@ -45,6 +45,8 @@ class MainWindow(QMainWindow):
         self._log = LogService.instance()
         self._file_manager = FileManager()
         self._current_worker: Optional[PdfWorker | PrintWorker] = None
+        self._btn_convert_folder_pdf_tab2 = None
+        self._btn_gather_pdf_tab2 = None
         self._setup_window()
         self._setup_ui()
         self._connect_signals()
@@ -65,37 +67,83 @@ class MainWindow(QMainWindow):
         layout.setSpacing(10)
         layout.setContentsMargins(16, 16, 16, 16)
 
-        # ── 드래그앤드롭 영역 ────────────────────────────
-        self._drop_zone = DropZone()
-
-        # ── 파일 목록 ───────────────────────────────────
-        self._file_list = FileListPanel()
-
-        # ── 컨트롤 패널 ─────────────────────────────────
-        self._control_panel = ControlPanel()
-
         # ── 진행률 패널 ─────────────────────────────────
         self._progress_panel = ProgressPanel()
 
-        # ── 레이아웃 조립 ────────────────────────────────
-        layout.addWidget(self._drop_zone)
-        layout.addWidget(self._file_list, stretch=1)
-        layout.addWidget(self._control_panel)
+        # ── QTabWidget 구성 ────────────────────────────
+        self._tab_widget = QTabWidget()
+        self._tab_widget.setObjectName("tabWidget")
+
+        # ── Tab 1: 파일 개별 처리 ────────────────────────
+        tab1 = QWidget()
+        tab1_layout = QVBoxLayout(tab1)
+        tab1_layout.setContentsMargins(4, 8, 4, 4)
+        tab1_layout.setSpacing(10)
+
+        self._drop_zone = DropZone()
+        self._file_list = FileListPanel()
+        self._control_panel = ControlPanel()
+        self._control_panel.hide_bulk_buttons()  # 개별 처리 탭에서는 벌크 버튼 숨김
+
+        tab1_layout.addWidget(self._drop_zone)
+        tab1_layout.addWidget(self._file_list, stretch=1)
+        tab1_layout.addWidget(self._control_panel)
+
+        # ── Tab 2: 일괄 작업 ─────────────────────────────
+        tab2 = QWidget()
+        tab2_layout = QVBoxLayout(tab2)
+        tab2_layout.setContentsMargins(12, 12, 12, 12)
+        tab2_layout.setSpacing(10)
+
+        bulk_group = QGroupBox("일괄 배치 작업 선택")
+        bulk_group.setObjectName("bulkGroup")
+        bulk_group_layout = QVBoxLayout(bulk_group)
+        bulk_group_layout.setSpacing(12)
+        bulk_group_layout.setContentsMargins(16, 20, 16, 16)
+
+        self._btn_convert_folder_pdf_tab2 = QPushButton("📁 폴더 전체 PDF 변환")
+        self._btn_convert_folder_pdf_tab2.setObjectName("btnConvertFolderPdf")
+        self._btn_convert_folder_pdf_tab2.setMinimumHeight(45)
+
+        self._btn_gather_pdf_tab2 = QPushButton("📂 PDF 모으기")
+        self._btn_gather_pdf_tab2.setObjectName("btnGatherPdf")
+        self._btn_gather_pdf_tab2.setMinimumHeight(45)
+
+        bulk_group_layout.addWidget(self._btn_convert_folder_pdf_tab2)
+        bulk_group_layout.addWidget(self._btn_gather_pdf_tab2)
+        bulk_group_layout.addStretch()
+
+        tab2_layout.addWidget(bulk_group)
+        tab2_layout.addStretch()
+
+        # 탭 추가
+        self._tab_widget.addTab(tab1, "파일 개별 처리")
+        self._tab_widget.addTab(tab2, "일괄 작업")
+
+        # 메인 레이아웃 조립
+        layout.addWidget(self._tab_widget, stretch=1)
         layout.addWidget(self._progress_panel)
 
     def _connect_signals(self):
         """Signal/Slot 연결"""
         # 드래그앤드롭 → AppState에 파일 추가
         self._drop_zone.files_dropped.connect(self._on_files_dropped)
+        # 드롭존 클릭 → 파일 수동 탐색 다이얼로그 호출
+        self._drop_zone.clicked.connect(self._on_select_files_manually)
         self._state.files_changed.connect(self._update_button_states)
+
+        # 탭 변경 → 상태 동기화
+        self._tab_widget.currentChanged.connect(self._on_tab_changed)
 
         # 컨트롤 패널 버튼
         self._control_panel.convert_pdf_clicked.connect(self._on_convert_pdf)
-        self._control_panel.convert_folder_pdf_clicked.connect(self._on_convert_folder_pdf)
-        self._control_panel.gather_pdf_clicked.connect(self._on_gather_pdf)
         self._control_panel.print_clicked.connect(self._on_print)
         self._control_panel.reset_clicked.connect(self._on_reset)
         self._control_panel.cancel_clicked.connect(self._on_cancel)
+
+        # 탭 2 일괄 작업 버튼
+        self._btn_convert_folder_pdf_tab2.clicked.connect(self._on_convert_folder_pdf)
+        self._btn_gather_pdf_tab2.clicked.connect(self._on_gather_pdf)
 
     # ── 이벤트 핸들러 ────────────────────────────────────
 
@@ -121,7 +169,33 @@ class MainWindow(QMainWindow):
         """파일 개수와 작업 상태에 의존하여 버튼 활성화/비활성화 상태 동기화"""
         has_files = self._state.file_count() > 0
         is_working = self._state.is_working()
-        self._control_panel.sync_button_states(has_files, is_working)
+        
+        # 현재 탭이 1 탭("파일 개별 처리", 인덱스 0)일 때만 인쇄 옵션 활성화
+        print_options_allowed = (self._tab_widget.currentIndex() == 0)
+        self._control_panel.sync_button_states(has_files, is_working, print_options_allowed)
+
+        # Tab2 버튼 동기화
+        if self._btn_convert_folder_pdf_tab2 and self._btn_gather_pdf_tab2:
+            self._btn_convert_folder_pdf_tab2.setEnabled(not is_working)
+            self._btn_gather_pdf_tab2.setEnabled(not is_working)
+
+    def _on_tab_changed(self, index: int):
+        """탭 변경 시 버튼 상태 동기화"""
+        self._update_button_states()
+
+    def _on_select_files_manually(self):
+        """마우스 클릭을 통해 수동으로 파일을 탐색 및 추가"""
+        if self._state.is_working():
+            return
+
+        files, _ = QFileDialog.getOpenFileNames(
+            self,
+            "추가할 한글(HWP/HWPX) 파일 선택",
+            "",
+            "한글 문서 (*.hwp *.hwpx)"
+        )
+        if files:
+            self._on_files_dropped(files)
 
     # ── PDF 변환 ─────────────────────────────────────────
 
@@ -358,8 +432,14 @@ class MainWindow(QMainWindow):
         if self._current_worker and self._current_worker.isRunning():
             self._state.set_job_status(JobStatus.CANCELLING)
             self._current_worker.cancel()
-            self._progress_panel.set_status("취소 중...")
-            self._progress_panel.append_log("⛔ 취소 요청됨...")
+            
+            # 현재 진행률 패널의 프로그레스 정보를 읽어와 상세 메시지 구성
+            completed = self._progress_panel._progress_bar.value()
+            total = self._progress_panel._progress_bar.maximum()
+            
+            status_msg = f"취소 요청됨. 현재 파일 완료 후 종료합니다. ({completed} / {total} 완료)"
+            self._progress_panel.set_status("취소 요청 중...")
+            self._progress_panel.append_log(f"⛔ {status_msg}")
 
     # ── 초기화 ─────────────────────────────────────────────
 
@@ -398,8 +478,10 @@ class MainWindow(QMainWindow):
         self._state.set_job_status(JobStatus.IDLE)
         self._update_button_states()
         self._progress_panel.set_status("완료")
+        
+        total = success + failed
         self._progress_panel.append_log(
-            f"✅ {job_type} 완료 — 성공: {success}, 실패: {failed}"
+            f"✅ {job_type} 완료\n  - 총 {total}개\n  - 성공: {success}\n  - 실패: {failed}"
         )
 
         self._log.log_app(f"{job_type} 완료: 성공={success}, 실패={failed}")
@@ -431,8 +513,8 @@ class MainWindow(QMainWindow):
                         self,
                         "변환 완료",
                         f"PDF 변환이 완료되었습니다.\n"
-                        f"성공: {success}, 실패: {failed}\n\n"
-                        f"출력 폴더를 열까요?",
+                        f"({success}개 성공, {failed}개 실패)\n\n"
+                        f"출력 폴더를 여시겠습니까?",
                         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                     )
                     if reply == QMessageBox.StandardButton.Yes:

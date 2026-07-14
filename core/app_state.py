@@ -94,6 +94,11 @@ class AppState(QObject):
             self._file_tasks.pop(index)
             self.files_changed.emit()
 
+    def remove_file_by_path(self, path: Path) -> None:
+        """파일 경로로 파일 제거"""
+        self._file_tasks = [t for t in self._file_tasks if t.path != path]
+        self.files_changed.emit()
+
     def clear_files(self) -> None:
         """모든 파일 제거"""
         self._file_tasks.clear()

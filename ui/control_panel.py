@@ -34,8 +34,8 @@ class ControlPanel(QWidget):
         main_layout = QHBoxLayout(self)
 
         # ── 인쇄 옵션 그룹 ───────────────────────────────
-        options_group = QGroupBox("인쇄 옵션")
-        options_group.setObjectName("optionsGroup")
+        self._options_group = QGroupBox("인쇄 옵션")
+        self._options_group.setObjectName("optionsGroup")
         options_layout = QVBoxLayout()
 
         # 매수
@@ -76,7 +76,7 @@ class ControlPanel(QWidget):
         self._lbl_guide.setStyleSheet("color: #ef4444; font-size: 11px; margin-top: 4px;")
         options_layout.addWidget(self._lbl_guide)
 
-        options_group.setLayout(options_layout)
+        self._options_group.setLayout(options_layout)
 
         # ── 액션 버튼 그룹 ───────────────────────────────
         buttons_group = QGroupBox("작업")
@@ -89,7 +89,7 @@ class ControlPanel(QWidget):
         self._btn_convert_pdf.setObjectName("btnConvertPdf")
         self._btn_convert_pdf.clicked.connect(self.convert_pdf_clicked.emit)
 
-        self._btn_convert_folder_pdf = QPushButton("📁 폴더 전체 pdf변환")
+        self._btn_convert_folder_pdf = QPushButton("📁 폴더 전체 PDF 변환")
         self._btn_convert_folder_pdf.setObjectName("btnConvertFolderPdf")
         self._btn_convert_folder_pdf.clicked.connect(self.convert_folder_pdf_clicked.emit)
 
@@ -118,7 +118,7 @@ class ControlPanel(QWidget):
         buttons_layout.addWidget(self._btn_cancel)
         buttons_group.setLayout(buttons_layout)
 
-        main_layout.addWidget(options_group, stretch=2)
+        main_layout.addWidget(self._options_group, stretch=2)
         main_layout.addWidget(buttons_group, stretch=1)
 
     # ── 외부 접근 메서드 ─────────────────────────────────
@@ -141,7 +141,7 @@ class ControlPanel(QWidget):
         self._combo_duplex.setCurrentIndex(0)
         self._combo_nup.setCurrentIndex(0)
 
-    def sync_button_states(self, has_files: bool, is_working: bool):
+    def sync_button_states(self, has_files: bool, is_working: bool, print_options_allowed: bool = True):
         """파일 존재 여부 및 작업 진행 상태에 맞춰 버튼들을 동기화"""
         self._btn_convert_pdf.setEnabled(has_files and not is_working)
         self._btn_convert_folder_pdf.setEnabled(not is_working)
@@ -149,6 +149,15 @@ class ControlPanel(QWidget):
         self._btn_print.setEnabled(has_files and not is_working)
         self._btn_reset.setEnabled(not is_working)
         self._btn_cancel.setEnabled(is_working)
-        self._spin_copies.setEnabled(not is_working)
-        self._combo_duplex.setEnabled(not is_working)
-        self._combo_nup.setEnabled(not is_working)
+        
+        # 인쇄 옵션은 작업 중이 아니고, 인쇄 옵션이 허용된 탭/맥락일 때만 활성화
+        options_enabled = print_options_allowed and not is_working
+        self._options_group.setEnabled(options_enabled)
+        self._spin_copies.setEnabled(options_enabled)
+        self._combo_duplex.setEnabled(options_enabled)
+        self._combo_nup.setEnabled(options_enabled)
+
+    def hide_bulk_buttons(self):
+        """폴더 변환 및 PDF 모으기 버튼을 숨깁니다."""
+        self._btn_convert_folder_pdf.setVisible(False)
+        self._btn_gather_pdf.setVisible(False)

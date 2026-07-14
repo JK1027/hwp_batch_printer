@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QBrush
+from pathlib import Path
 
 from core.app_state import AppState
 from core.models import FileStatus
@@ -86,8 +87,8 @@ class FileListPanel(QWidget):
         # ── 테이블 ──────────────────────────────────────
         self._table = QTableWidget()
         self._table.setObjectName("fileTable")
-        self._table.setColumnCount(3)
-        self._table.setHorizontalHeaderLabels(["파일명", "경로", "상태"])
+        self._table.setColumnCount(4)
+        self._table.setHorizontalHeaderLabels(["파일명", "경로", "상태", "관리"])
         self._table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self._table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._table.horizontalHeader().setSectionResizeMode(
@@ -99,6 +100,9 @@ class FileListPanel(QWidget):
         self._table.horizontalHeader().setSectionResizeMode(
             2, QHeaderView.ResizeMode.ResizeToContents
         )
+        self._table.horizontalHeader().setSectionResizeMode(
+            3, QHeaderView.ResizeMode.ResizeToContents
+        )
 
         layout.addLayout(header_layout)
         layout.addWidget(self._table)
@@ -107,6 +111,7 @@ class FileListPanel(QWidget):
         """AppState 시그널 연결"""
         self._state.files_changed.connect(self.refresh_table)
         self._state.file_status_changed.connect(self._on_file_status_changed)
+        self._table.cellClicked.connect(self._on_cell_clicked)
 
     # ── 테이블 갱신 ──────────────────────────────────────
 
@@ -133,9 +138,30 @@ class FileListPanel(QWidget):
             self._table.setItem(
                 row, 2, QTableWidgetItem(STATUS_DISPLAY.get(task.status, ""))
             )
+            
+            # 관리 열 (삭제 텍스트 아이콘)
+            del_item = QTableWidgetItem("❌")
+            del_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            del_item.setToolTip("대기열에서 삭제")
+            self._table.setItem(row, 3, del_item)
+            
             self._style_row(row, task.status)
 
         self._file_count_label.setText(f"파일: {len(files)}개")
+
+    def _on_cell_clicked(self, row: int, col: int):
+        """셀 클릭 핸들러 - 4번째 열(삭제) 클릭 처리"""
+        if col == 3:  # 관리(삭제) 열
+            if self._state.is_working():
+                return
+            
+            name_item = self._table.item(row, 0)
+            path_item = self._table.item(row, 1)
+            if name_item and path_item:
+                filename = name_item.text()
+                parent_dir = path_item.text()
+                full_path = Path(parent_dir) / filename
+                self._state.remove_file_by_path(full_path)
 
     def _on_file_status_changed(self, index: int, status_str: str):
         """개별 파일 상태 변경 시 해당 행만 업데이트"""

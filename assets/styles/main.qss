@@ -355,3 +355,41 @@ QPushButton:disabled {
     color: #4b5563;
     font-style: italic;
 }
+
+/* ── QTabWidget & QTabBar 커스텀 스타일 ──────────────── */
+QTabWidget::pane {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background-color: #ffffff;
+    top: -1px;
+}
+
+QTabBar::tab {
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    border-bottom: none;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    padding: 8px 16px;
+    font-weight: 600;
+    color: #4b5563;
+    margin-right: 2px;
+}
+
+QTabBar::tab:selected {
+    background: #ffffff;
+    border-color: #e5e7eb;
+    border-bottom: 2px solid #4f46e5;
+    color: #4f46e5;
+}
+
+QTabBar::tab:hover:!selected {
+    background: #e5e7eb;
+    color: #1f2937;
+}
+
+/* ── 드롭존 마우스 호버 효과 보강 ─────────────────────── */
+#dropZone:hover {
+    border-color: #4f46e5;
+    background-color: #f9fafb;
+}

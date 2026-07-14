@@ -17,11 +17,14 @@ class DropZone(QFrame):
 
     # 드롭된 파일 경로 목록을 전달하는 시그널
     files_dropped = Signal(list)
+    # 드롭존 클릭 시그널
+    clicked = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setAcceptDrops(True)
         self.setObjectName("dropZone")
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
         self._setup_ui()
 
     def _setup_ui(self):
@@ -29,7 +32,7 @@ class DropZone(QFrame):
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self._label = QLabel("여기에 HWP/HWPX 파일을\n드래그하여 놓으세요")
+        self._label = QLabel("여기에 파일을 놓거나 클릭하여 선택하세요.")
         self._label.setObjectName("dropZoneLabel")
         self._label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
@@ -41,6 +44,14 @@ class DropZone(QFrame):
         layout.addWidget(self._label)
 
         self.setMinimumHeight(150)
+
+    def mousePressEvent(self, event):
+        """마우스 클릭 이벤트 오버라이드"""
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.clicked.emit()
+            event.accept()
+        else:
+            super().mousePressEvent(event)
 
     # ── 드래그앤드롭 이벤트 ──────────────────────────────
 
